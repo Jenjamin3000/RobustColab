@@ -170,7 +170,7 @@ def inject_random_users(ratings: pd.DataFrame, nb_attackers = 1, random_seed=Non
     df_mod = ratings.copy()
 
 
-    attacker_rows = rand_gen.normal(loc=0.0, scale=1.0, size=(nb_attackers, ratings.shape[1]))
+    attacker_rows = pd.DataFrame(rand_gen.normal(loc=0.0, scale=1.0, size=(nb_attackers, ratings.shape[1])))
 
     # Concatenate attackers to the existing DataFrame
     if len(attacker_rows) > 0:
