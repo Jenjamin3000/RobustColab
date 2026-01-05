@@ -108,6 +108,29 @@ def generate_synthetic_ratings(
 
     return ratings_df, long_df, meta
 
+def generate_random_basic_data(nb_users, nb_items, sparcity):
+    ratings_df, long_df, meta = generate_synthetic_ratings(
+            n_users=nb_users,
+            n_items=nb_items,
+            n_factors=5,
+            n_groups=3,
+            group_strength=0.1,
+            user_noise=0.1,
+            item_scale=0.1,
+            user_bias_std=0.0,
+            item_bias_std=0.0,
+            global_mean=0.0,
+            noise_std=0.05,
+            rating_min=None,
+            rating_max=None,
+            random_seed=None
+        )
+    real_grade = ratings_df.iloc[0, -1]
+
+    ratings_df = inject_nans(ratings_df, sparcity, None)
+
+    return ratings_df, real_grade
+
 
 def inject_attackers(df: pd.DataFrame, nb_attackers: int = 1, att_grade: float = 1000) -> pd.DataFrame:
     """
@@ -130,7 +153,7 @@ def inject_attackers(df: pd.DataFrame, nb_attackers: int = 1, att_grade: float =
     df_mod = df.copy()
 
     # Set the last item rating of the first user to NaN
-    df_mod.iloc[0, -1] = np.nan
+    #df_mod.iloc[0, -1] = np.nan
 
     # Create attacker rows (copies of the first user's row)
     attacker_rows = pd.DataFrame(
@@ -171,6 +194,53 @@ def inject_random_users(ratings: pd.DataFrame, nb_attackers = 1, random_seed=Non
 
 
     attacker_rows = pd.DataFrame(rand_gen.normal(loc=0.0, scale=1.0, size=(nb_attackers, ratings.shape[1])))
+
+    # Concatenate attackers to the existing DataFrame
+    if len(attacker_rows) > 0:
+        df_with_attackers = pd.concat([df_mod, attacker_rows], axis=0)
+    else:
+        df_with_attackers = df_mod
+
+    return df_with_attackers
+
+def inject_random_attacker_favoritizing(df: pd.DataFrame, random_seed, nb_attackers: int = 1, att_grade: float = 1000, ) -> pd.DataFrame:
+    """
+    Create random users nb_attackers times (attackers) and set the last item for them as att_grade,
+    and set the last item's rating for the original first user to NaN.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        User-item rating matrix (users as rows, items as columns)
+    random_seed : int
+        random seed
+    nb_attackers : int
+        Number of attacker users to insert
+    att_grade : float
+        The grade the attackers will use for the last item
+
+    Returns
+    -------
+    pd.DataFrame
+        New DataFrame with attackers inserted and first user modified
+    """
+
+
+    rand_gen =  np.random.default_rng(random_seed)
+
+    # Copy DataFrame to avoid modifying original
+    df_mod = df.copy()
+
+    # Create attacker rows (copies of the first user's row)
+    attacker_rows = pd.DataFrame(
+        rand_gen.normal(loc=0.0, scale=1.0, size=(nb_attackers, df.shape[1])),
+        columns=df_mod.columns
+    )
+    attacker_rows.iloc[:, -1] = att_grade
+
+    # Name the new attacker users
+    attacker_names = [f"attacker_{i+1}" for i in range(nb_attackers)]
+    attacker_rows.index = attacker_names
 
     # Concatenate attackers to the existing DataFrame
     if len(attacker_rows) > 0:
